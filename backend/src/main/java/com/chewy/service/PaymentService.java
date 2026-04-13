@@ -25,14 +25,17 @@ public class PaymentService {
     @Value("${payment.stripe.webhook-secret}")
     private String stripeWebhookSecret;
 
-    @Value("${payment.paypal.client-id}")
+    @Value("${payment.paypal.client-id:#{null}}")
     private String paypalClientId;
 
-    @Value("${payment.paypal.client-secret}")
+    @Value("${payment.paypal.client-secret:#{null}}")
     private String paypalClientSecret;
 
-    @Value("${payment.paypal.mode}")
+    @Value("${payment.paypal.mode:sandbox}")
     private String paypalMode;
+
+    @Value("${payment.paypal.enabled:false}")
+    private boolean paypalEnabled;
 
     private final OrderMapper orderMapper;
 
@@ -117,38 +120,40 @@ public class PaymentService {
     }
 
     /**
-     * 创建 PayPal 订单（沙箱）
-     * 注：PayPal SDK v2 需要 OAuth token，此处返回结构，真实调用在 Key 配置后生效
+     * 创建 PayPal 订单（暂未开放，Key 待配置）
      */
     public Map<String, String> createPayPalOrder(Long orderId, Long userId) {
-        Order order = getOrderOrThrow(orderId, userId);
-        // PayPal SDK 调用占位（待沙箱 Key 配置后激活）
-        log.info("Creating PayPal order for orderId={}, amount={}", orderId, order.getTotalAmount());
+        if (!paypalEnabled) {
+            Map<String, String> result = new HashMap<>();
+            result.put("status", "UNAVAILABLE");
+            result.put("message", "PayPal payment is not available yet. Please use Stripe.");
+            return result;
+        }
+        // PayPal SDK 调用（待 Key 配置后激活）
+        getOrderOrThrow(orderId, userId);
+        log.info("PayPal createOrder placeholder: orderId={}", orderId);
         Map<String, String> result = new HashMap<>();
         result.put("status", "CREATED");
         result.put("orderId", String.valueOf(orderId));
-        result.put("amount", String.valueOf(order.getTotalAmount()));
-        result.put("currency", "USD");
         result.put("note", "PayPal sandbox key pending configuration");
         return result;
     }
 
     /**
-     * 捕获 PayPal 支付
-     * @param paypalOrderId PayPal 返回的 order ID
-     * @param orderId 业务订单 ID
+     * 捕获 PayPal 支付（暂未开放）
      */
     public Map<String, String> capturePayPalPayment(String paypalOrderId, Long orderId, Long userId) {
-        Order order = getOrderOrThrow(orderId, userId);
-        // PayPal 捕获逻辑占位（待 Key 配置后激活）
-        log.info("Capturing PayPal payment: paypalOrderId={}, orderId={}", paypalOrderId, orderId);
-        order.setStatus("paid");
-        order.setPaymentMethod("paypal");
-        order.setPaymentIntentId(paypalOrderId);
-        orderMapper.updateById(order);
-
+        if (!paypalEnabled) {
+            Map<String, String> result = new HashMap<>();
+            result.put("status", "UNAVAILABLE");
+            result.put("message", "PayPal payment is not available yet. Please use Stripe.");
+            return result;
+        }
+        // PayPal 捕获逻辑（待 Key 配置后激活）
+        getOrderOrThrow(orderId, userId);
+        log.info("PayPal capture placeholder: paypalOrderId={}, orderId={}", paypalOrderId, orderId);
         Map<String, String> result = new HashMap<>();
-        result.put("status", "COMPLETED");
+        result.put("status", "PENDING_CONFIGURATION");
         result.put("paypalOrderId", paypalOrderId);
         result.put("orderId", String.valueOf(orderId));
         return result;
