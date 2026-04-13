@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,9 +31,16 @@ public class ProductService {
 
     /** 商品列表（分页+筛选+排序） */
     public IPage<Product> listProducts(ProductQueryRequest req) {
+        // BUG-002 修复：分类查询包含所有子分类
+        List<Long> categoryIds = null;
+        if (req.getCategoryId() != null) {
+            categoryIds = getAllCategoryIds(req.getCategoryId());
+        }
+        final List<Long> finalCategoryIds = categoryIds;
+
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getStatus, 1)
-                .eq(req.getCategoryId() != null, Product::getCategoryId, req.getCategoryId())
+                .in(finalCategoryIds != null && !finalCategoryIds.isEmpty(), Product::getCategoryId, finalCategoryIds)
                 .eq(StringUtils.hasText(req.getBrand()), Product::getBrand, req.getBrand())
                 .eq(req.getAutoshipOnly() != null && req.getAutoshipOnly() == 1, Product::getAutoshipEligible, 1)
                 .and(StringUtils.hasText(req.getKeyword()), w -> w
@@ -122,6 +131,25 @@ public class ProductService {
     }
 
     // ---- private helpers ----
+
+    /**
+     * BUG-002: 递归获取分类及所有子分类ID列表
+     * 例如 categoryId=1(Dog) → [1, 6(Dog Food), 7(Dog Treats), 8(Dog Toys), 9(Dog Health)]
+     */
+    private List<Long> getAllCategoryIds(Long rootCategoryId) {
+        List<Long> ids = new ArrayList<>();
+        ids.add(rootCategoryId);
+        // 查询直接子分类
+        List<Category> children = categoryMapper.selectList(
+            new LambdaQueryWrapper<Category>()
+                .eq(Category::getParentId, rootCategoryId)
+                .eq(Category::getStatus, 1)
+        );
+        for (Category child : children) {
+            ids.addAll(getAllCategoryIds(child.getId())); // 递归（最多2层，性能可接受）
+        }
+        return ids;
+    }
 
     private void fillProductFromRequest(Product product, AdminProductRequest req) {
         product.setCategoryId(req.getCategoryId());
