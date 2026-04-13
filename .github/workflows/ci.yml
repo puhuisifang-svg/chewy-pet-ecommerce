@@ -1,0 +1,76 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend-test:
+    name: Backend Tests (Java)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_root
+          MYSQL_DATABASE: chewy_test
+          MYSQL_USER: chewy_user
+          MYSQL_PASSWORD: chewy_pass
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Test with Maven
+        run: |
+          if [ -f backend/pom.xml ]; then
+            cd backend && mvn clean test -Dspring.datasource.url=jdbc:mysql://localhost:3306/chewy_test -Dspring.datasource.username=chewy_user -Dspring.datasource.password=chewy_pass
+          else
+            echo "No backend directory yet, skipping..."
+          fi
+
+  frontend-test:
+    name: Frontend Tests (Vue)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install and Test
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm ci && npm run test:unit
+          else
+            echo "No frontend directory yet, skipping..."
+          fi
+
+  lint:
+    name: Code Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint check
+        run: echo "Lint checks will be added as code is committed"
