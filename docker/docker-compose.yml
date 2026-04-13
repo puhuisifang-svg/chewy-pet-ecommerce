@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: chewy-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: chewy_pet
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../database:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7-alpine
+    container_name: chewy-redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: chewy-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: chewy-frontend
+    ports:
+      - "3000:80"
+
+volumes:
+  mysql-data:

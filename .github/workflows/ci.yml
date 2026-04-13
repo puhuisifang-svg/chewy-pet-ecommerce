@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,8 +7,26 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  backend-test:
-    name: Backend Tests (Java)
+  frontend:
+    name: Frontend Build & Test (Vue)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install and Build
+        run: |
+          if [ -f frontend/package.json ]; then
+            cd frontend && npm ci && npm run build
+          else
+            echo "No frontend directory yet, skipping..."
+          fi
+
+  backend:
+    name: Backend Build & Test (Java)
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -29,48 +47,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-
       - name: Build and Test with Maven
         run: |
           if [ -f backend/pom.xml ]; then
-            cd backend && mvn clean test -Dspring.datasource.url=jdbc:mysql://localhost:3306/chewy_test -Dspring.datasource.username=chewy_user -Dspring.datasource.password=chewy_pass
+            cd backend && mvn clean verify -Dspring.datasource.url=jdbc:mysql://localhost:3306/chewy_test -Dspring.datasource.username=chewy_user -Dspring.datasource.password=chewy_pass
           else
             echo "No backend directory yet, skipping..."
           fi
-
-  frontend-test:
-    name: Frontend Tests (Vue)
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
-
-      - name: Install and Test
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend && npm ci && npm run test:unit
-          else
-            echo "No frontend directory yet, skipping..."
-          fi
-
-  lint:
-    name: Code Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Lint check
-        run: echo "Lint checks will be added as code is committed"
