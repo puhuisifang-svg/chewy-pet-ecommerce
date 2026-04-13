@@ -2,6 +2,7 @@ package com.chewy.controller;
 
 import com.chewy.common.Result;
 import com.chewy.service.PaymentService;
+import com.chewy.exception.UnauthorizedException;
 import com.chewy.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,7 @@ public class PaymentController {
     private Long extractUserId(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            throw new RuntimeException("Unauthorized");
+            throw new UnauthorizedException("Login required. Please provide a valid token.");
         }
         return jwtUtil.getUserId(header.substring(7));
     }

@@ -22,6 +22,12 @@ public class GlobalExceptionHandler {
         return Result.error(400, msg);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleUnauthorized(UnauthorizedException ex) {
+        return Result.error(401, ex.getMessage());
+    }
+
     @ExceptionHandler(RuntimeException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleRuntime(RuntimeException ex) {

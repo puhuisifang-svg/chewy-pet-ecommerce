@@ -6,6 +6,7 @@ import com.chewy.dto.order.CreateOrderRequest;
 import com.chewy.dto.order.OrderDetailVO;
 import com.chewy.entity.Order;
 import com.chewy.service.OrderService;
+import com.chewy.exception.UnauthorizedException;
 import com.chewy.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -54,7 +55,7 @@ public class OrderController {
     private Long extractUserId(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            throw new RuntimeException("Unauthorized");
+            throw new UnauthorizedException("Login required. Please provide a valid token.");
         }
         return jwtUtil.getUserId(header.substring(7));
     }
