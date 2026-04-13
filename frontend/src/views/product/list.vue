@@ -6,10 +6,12 @@
       <aside class="sidebar">
         <h3>Filter By</h3>
 
-        <!-- Category -->
         <div class="filter-group">
           <h4>Pet Type</h4>
           <ul class="filter-list">
+            <li :class="{ active: !filters.category }" @click="setFilter('category', null)">
+              🐾 All Pets
+            </li>
             <li
               v-for="cat in categories"
               :key="cat.slug"
@@ -18,16 +20,15 @@
             >
               {{ cat.emoji }} {{ cat.name }}
             </li>
-            <li :class="{ active: !filters.category }" @click="setFilter('category', null)">
-              🐾 All Pets
-            </li>
           </ul>
         </div>
 
-        <!-- Price Range -->
         <div class="filter-group">
           <h4>Price Range</h4>
           <ul class="filter-list">
+            <li :class="{ active: !filters.priceRange }" @click="setFilter('priceRange', null)">
+              Any Price
+            </li>
             <li
               v-for="range in priceRanges"
               :key="range.label"
@@ -35,27 +36,6 @@
               @click="setFilter('priceRange', range.label)"
             >
               {{ range.label }}
-            </li>
-            <li :class="{ active: !filters.priceRange }" @click="setFilter('priceRange', null)">
-              Any Price
-            </li>
-          </ul>
-        </div>
-
-        <!-- Brand -->
-        <div class="filter-group">
-          <h4>Brand</h4>
-          <ul class="filter-list">
-            <li
-              v-for="brand in brands"
-              :key="brand"
-              :class="{ active: filters.brand === brand }"
-              @click="setFilter('brand', brand)"
-            >
-              {{ brand }}
-            </li>
-            <li :class="{ active: !filters.brand }" @click="setFilter('brand', null)">
-              All Brands
             </li>
           </ul>
         </div>
@@ -67,53 +47,60 @@
         <!-- Toolbar -->
         <div class="toolbar">
           <div class="result-count">
-            {{ filteredProducts.length }} Products
-            <span v-if="searchQuery" class="search-term">for "{{ searchQuery }}"</span>
+            <span v-if="loading">Loading...</span>
+            <span v-else>{{ total }} Products</span>
           </div>
           <div class="toolbar-right">
-            <!-- Search -->
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Search products..."
               class="search-input"
+              @input="onSearch"
             />
-            <!-- Sort -->
-            <select v-model="sortBy" class="sort-select">
-              <option value="featured">Featured</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
+            <select v-model="sortBy" class="sort-select" @change="fetchProducts">
+              <option value="">Featured</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
             </select>
           </div>
         </div>
 
+        <!-- Loading -->
+        <div v-if="loading" class="loading-grid">
+          <div v-for="n in 12" :key="n" class="skeleton-card">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-line wide"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line narrow"></div>
+          </div>
+        </div>
+
         <!-- Product Grid -->
-        <div class="product-grid" v-if="filteredProducts.length">
+        <div v-else-if="products.length" class="product-grid">
           <div
-            v-for="product in filteredProducts"
+            v-for="product in products"
             :key="product.id"
             class="product-card"
           >
             <router-link :to="`/product/${product.id}`">
               <div class="product-img">
-                <span class="product-emoji">{{ product.emoji }}</span>
-                <span v-if="product.badge" class="product-badge">{{ product.badge }}</span>
+                <img
+                  v-if="getImage(product)"
+                  :src="getImage(product)"
+                  :alt="product.name"
+                  @error="onImgError($event)"
+                />
+                <span v-else class="product-emoji">🐾</span>
+                <span v-if="product.salePrice && product.salePrice < product.price" class="product-badge">Sale</span>
               </div>
               <div class="product-info">
                 <span class="product-brand">{{ product.brand }}</span>
                 <h3 class="product-name">{{ product.name }}</h3>
-                <div class="product-rating">
-                  <span class="stars">★★★★★</span>
-                  <span class="review-count">({{ product.reviews.toLocaleString() }})</span>
-                </div>
                 <div class="product-price">
-                  <span class="price">${{ product.price.toFixed(2) }}</span>
-                  <span v-if="product.originalPrice" class="original-price">
-                    ${{ product.originalPrice.toFixed(2) }}
-                  </span>
-                  <span v-if="product.originalPrice" class="discount">
-                    {{ Math.round((1 - product.price / product.originalPrice) * 100) }}% off
+                  <span class="price">${{ displayPrice(product) }}</span>
+                  <span v-if="product.salePrice && product.salePrice < product.price" class="original-price">
+                    ${{ product.price.toFixed(2) }}
                   </span>
                 </div>
               </div>
@@ -122,10 +109,31 @@
           </div>
         </div>
 
-        <!-- Empty State -->
+        <!-- Empty -->
         <div v-else class="empty-state">
           <span>🔍</span>
           <p>No products found. Try adjusting your filters.</p>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="pagination">
+          <button
+            class="page-btn"
+            :disabled="currentPage === 1"
+            @click="goPage(currentPage - 1)"
+          >‹ Prev</button>
+          <button
+            v-for="p in visiblePages"
+            :key="p"
+            class="page-btn"
+            :class="{ active: p === currentPage }"
+            @click="goPage(p)"
+          >{{ p }}</button>
+          <button
+            class="page-btn"
+            :disabled="currentPage === totalPages"
+            @click="goPage(currentPage + 1)"
+          >Next ›</button>
         </div>
 
       </div>
@@ -134,20 +142,28 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCartStore } from '../../stores/cart'
+import { productApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const cartStore = useCartStore()
 
+const products = ref([])
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const loading = ref(false)
 const searchQuery = ref('')
-const sortBy = ref('featured')
+const sortBy = ref('')
+
+let searchTimer = null
+
 const filters = ref({
   category: route.query.category || null,
   priceRange: null,
-  brand: null,
 })
 
 const categories = [
@@ -163,86 +179,118 @@ const priceRanges = [
   { label: 'Under $25', min: 0, max: 25 },
   { label: '$25 – $50', min: 25, max: 50 },
   { label: '$50 – $100', min: 50, max: 100 },
-  { label: 'Over $100', min: 100, max: Infinity },
+  { label: 'Over $100', min: 100, max: 9999 },
 ]
 
-const brands = ['Blue Buffalo', 'Wellness', 'KONG', 'Purina', 'Hill\'s', 'Royal Canin']
+const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
-const allProducts = ref([
-  { id: 1, name: 'Adult Complete Dry Dog Food', brand: 'Blue Buffalo', category: 'dog', emoji: '🥩', price: 54.99, originalPrice: 64.99, reviews: 2341, badge: 'Sale' },
-  { id: 2, name: 'Indoor Cat Grain-Free Food', brand: 'Wellness', category: 'cat', emoji: '🐱', price: 28.49, originalPrice: null, reviews: 1892, badge: null },
-  { id: 3, name: 'Interactive Puzzle Toy', brand: 'KONG', category: 'dog', emoji: '🧩', price: 14.99, originalPrice: 19.99, reviews: 987, badge: 'Sale' },
-  { id: 4, name: 'Orthopedic Memory Foam Bed', brand: 'Blue Buffalo', category: 'dog', emoji: '🛏️', price: 89.95, originalPrice: null, reviews: 654, badge: null },
-  { id: 5, name: 'Premium Kitten Dry Food', brand: 'Royal Canin', category: 'cat', emoji: '🐟', price: 38.99, originalPrice: null, reviews: 1234, badge: 'New' },
-  { id: 6, name: 'Tropical Fish Food Flakes', brand: 'Purina', category: 'fish', emoji: '🐠', price: 8.99, originalPrice: 12.99, reviews: 445, badge: 'Sale' },
-  { id: 7, name: 'Dog Dental Chews', brand: 'Hill\'s', category: 'dog', emoji: '🦷', price: 22.49, originalPrice: null, reviews: 768, badge: null },
-  { id: 8, name: 'Canary Seed Mix', brand: 'Purina', category: 'bird', emoji: '🌻', price: 16.99, originalPrice: null, reviews: 321, badge: null },
-  { id: 9, name: 'Guinea Pig Habitat', brand: 'KONG', category: 'small-pet', emoji: '🏠', price: 79.99, originalPrice: 99.99, reviews: 203, badge: 'Sale' },
-  { id: 10, name: 'Reptile Heat Lamp', brand: 'Wellness', category: 'reptile', emoji: '🔆', price: 34.99, originalPrice: null, reviews: 156, badge: 'New' },
-  { id: 11, name: 'Cat Scratching Post Tower', brand: 'KONG', category: 'cat', emoji: '🗼', price: 49.99, originalPrice: 59.99, reviews: 892, badge: 'Sale' },
-  { id: 12, name: 'Dog Harness No-Pull', brand: 'Blue Buffalo', category: 'dog', emoji: '🦺', price: 29.95, originalPrice: null, reviews: 1102, badge: null },
-])
-
-const filteredProducts = computed(() => {
-  let result = allProducts.value
-
-  // Search
-  if (searchQuery.value) {
-    const q = searchQuery.value.toLowerCase()
-    result = result.filter(p =>
-      p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
-    )
-  }
-
-  // Category filter
-  if (filters.value.category) {
-    result = result.filter(p => p.category === filters.value.category)
-  }
-
-  // Brand filter
-  if (filters.value.brand) {
-    result = result.filter(p => p.brand === filters.value.brand)
-  }
-
-  // Price range filter
-  if (filters.value.priceRange) {
-    const range = priceRanges.find(r => r.label === filters.value.priceRange)
-    if (range) {
-      result = result.filter(p => p.price >= range.min && p.price < range.max)
-    }
-  }
-
-  // Sort
-  if (sortBy.value === 'price-asc') result = [...result].sort((a, b) => a.price - b.price)
-  if (sortBy.value === 'price-desc') result = [...result].sort((a, b) => b.price - a.price)
-  if (sortBy.value === 'rating') result = [...result].sort((a, b) => b.reviews - a.reviews)
-
-  return result
+const visiblePages = computed(() => {
+  const pages = []
+  const start = Math.max(1, currentPage.value - 2)
+  const end = Math.min(totalPages.value, currentPage.value + 2)
+  for (let i = start; i <= end; i++) pages.push(i)
+  return pages
 })
+
+async function fetchProducts() {
+  loading.value = true
+  try {
+    const params = {
+      page: currentPage.value,
+      size: pageSize.value,
+    }
+    if (searchQuery.value) params.keyword = searchQuery.value
+    if (filters.value.category) params.category = filters.value.category
+    if (sortBy.value) params.sort = sortBy.value
+    if (filters.value.priceRange) {
+      const range = priceRanges.find(r => r.label === filters.value.priceRange)
+      if (range) {
+        params.minPrice = range.min
+        params.maxPrice = range.max
+      }
+    }
+
+    const res = await productApi.list(params)
+    // Handle response envelope: { code, data: { records, total, ... } }
+    const data = res?.data || res
+    products.value = data?.records || data?.list || data || []
+    total.value = data?.total || products.value.length
+  } catch (err) {
+    console.error('[Products] fetch failed', err)
+    ElMessage({ message: 'Failed to load products. Please retry.', type: 'error' })
+    products.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
 function setFilter(key, value) {
   filters.value[key] = value
+  currentPage.value = 1
+  fetchProducts()
+}
+
+function onSearch() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    fetchProducts()
+  }, 400)
+}
+
+function goPage(p) {
+  if (p < 1 || p > totalPages.value) return
+  currentPage.value = p
+  fetchProducts()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function getImage(product) {
+  try {
+    const imgs = JSON.parse(product.images)
+    return Array.isArray(imgs) ? imgs[0] : imgs
+  } catch {
+    return product.images || null
+  }
+}
+
+function onImgError(e) {
+  e.target.style.display = 'none'
+  e.target.parentElement.querySelector('.product-emoji') && (e.target.parentElement.querySelector('.product-emoji').style.display = 'flex')
+}
+
+function displayPrice(product) {
+  const p = product.salePrice && product.salePrice < product.price
+    ? product.salePrice
+    : product.price
+  return Number(p).toFixed(2)
 }
 
 function addToCart(product) {
-  cartStore.addItem(product)
-  ElMessage({ message: `${product.name} added to cart!`, type: 'success', duration: 2000 })
+  cartStore.addItem({
+    id: product.id,
+    name: product.name,
+    brand: product.brand,
+    price: product.salePrice || product.price,
+    emoji: '🐾',
+    image: getImage(product),
+  })
+  ElMessage({ message: `${product.name.slice(0, 30)}... added to cart!`, type: 'success', duration: 2000 })
 }
+
+onMounted(fetchProducts)
 </script>
 
 <style scoped>
-.product-list-page {
-  background: var(--bg);
-  min-height: 100vh;
-}
+.product-list-page { background: var(--bg); min-height: 100vh; }
 
 .page-inner {
   max-width: 1280px;
   margin: 0 auto;
   padding: 32px 24px;
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 32px;
+  grid-template-columns: 220px 1fr;
+  gap: 28px;
   align-items: start;
 }
 
@@ -251,7 +299,7 @@ function addToCart(product) {
   background: white;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 20px;
   position: sticky;
   top: 80px;
 }
@@ -259,106 +307,97 @@ function addToCart(product) {
 .sidebar > h3 {
   font-size: 1rem;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
-.filter-group {
-  margin-bottom: 24px;
-}
-
+.filter-group { margin-bottom: 20px; }
 .filter-group h4 {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.filter-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+.filter-list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .filter-list li {
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.15s;
   color: var(--text-muted);
+  transition: all 0.15s;
 }
-
-.filter-list li:hover {
-  background: #f0f9ff;
-  color: var(--primary);
-}
-
-.filter-list li.active {
-  background: #e0f2fe;
-  color: var(--primary);
-  font-weight: 600;
-}
+.filter-list li:hover { background: #f0f9ff; color: var(--primary); }
+.filter-list li.active { background: #e0f2fe; color: var(--primary); font-weight: 600; }
 
 /* Toolbar */
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
+  margin-bottom: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.result-count {
-  font-weight: 600;
-  font-size: 1rem;
-}
+.result-count { font-weight: 600; }
 
-.search-term {
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
+.toolbar-right { display: flex; gap: 10px; align-items: center; }
 
 .search-input {
   padding: 8px 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   outline: none;
-  width: 220px;
-  transition: border-color 0.2s;
+  width: 200px;
 }
-
-.search-input:focus {
-  border-color: var(--primary);
-}
+.search-input:focus { border-color: var(--primary); }
 
 .sort-select {
-  padding: 8px 12px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   background: white;
   cursor: pointer;
   outline: none;
+}
+
+/* Skeleton */
+.loading-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.skeleton-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-img { height: 160px; background: #e5e7eb; }
+.skeleton-line { height: 14px; background: #e5e7eb; margin: 12px 14px 8px; border-radius: 4px; }
+.skeleton-line.wide { width: 80%; }
+.skeleton-line.narrow { width: 40%; margin-bottom: 16px; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* Product Grid */
 .product-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 18px;
 }
 
 .product-card {
@@ -366,98 +405,50 @@ function addToCart(product) {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: box-shadow 0.2s, transform 0.2s;
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.2s, transform 0.2s;
 }
-
-.product-card:hover {
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  transform: translateY(-2px);
-}
-
+.product-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); transform: translateY(-2px); }
 .product-card > a { flex: 1; }
 
 .product-img {
   position: relative;
-  background: #f0f9ff;
-  height: 160px;
+  background: #f8f9fa;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
-.product-emoji { font-size: 3.5rem; }
+.product-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 12px;
+}
+
+.product-emoji { font-size: 4rem; }
 
 .product-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   background: var(--accent);
   color: white;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
 }
 
-.product-info {
-  padding: 14px;
-}
-
-.product-brand {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.product-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin: 5px 0 7px;
-  line-height: 1.4;
-  color: var(--text);
-}
-
-.product-rating {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.stars { color: #f59e0b; font-size: 0.82rem; }
-.review-count { font-size: 0.78rem; color: var(--text-muted); }
-
-.product-price {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.price {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--primary);
-}
-
-.original-price {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-
-.discount {
-  font-size: 0.78rem;
-  background: #fef3c7;
-  color: #92400e;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-}
+.product-info { padding: 12px 14px; }
+.product-brand { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.product-name { font-size: 0.88rem; font-weight: 600; margin: 4px 0 8px; line-height: 1.4; }
+.product-price { display: flex; align-items: center; gap: 6px; }
+.price { font-size: 1rem; font-weight: 700; color: var(--primary); }
+.original-price { font-size: 0.8rem; color: var(--text-muted); text-decoration: line-through; }
 
 .btn-add-cart {
   width: 100%;
@@ -470,45 +461,49 @@ function addToCart(product) {
   cursor: pointer;
   transition: background 0.2s;
 }
+.btn-add-cart:hover { background: var(--primary-hover); }
 
-.btn-add-cart:hover {
-  background: var(--primary-hover);
+/* Empty */
+.empty-state { text-align: center; padding: 60px 24px; color: var(--text-muted); }
+.empty-state span { font-size: 3rem; display: block; margin-bottom: 14px; }
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 36px;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 80px 24px;
-  color: var(--text-muted);
+.page-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s;
 }
-
-.empty-state span {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 16px;
-}
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .page-inner { grid-template-columns: 200px 1fr; }
+  .page-inner { grid-template-columns: 180px 1fr; }
   .product-grid { grid-template-columns: repeat(2, 1fr); }
+  .loading-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .page-inner {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
-  .sidebar {
-    position: static;
-    display: none; /* Simplified: hide sidebar on mobile */
-  }
+  .page-inner { grid-template-columns: 1fr; padding: 16px; }
+  .sidebar { display: none; }
   .product-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .toolbar { flex-direction: column; align-items: flex-start; }
-  .search-input { width: 100%; }
+  .loading-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 480px) {
   .product-grid { grid-template-columns: 1fr; }
+  .loading-grid { grid-template-columns: 1fr; }
 }
 </style>

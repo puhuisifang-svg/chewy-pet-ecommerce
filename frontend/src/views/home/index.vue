@@ -46,18 +46,23 @@
             class="product-card"
           >
             <router-link :to="`/product/${product.id}`">
-              <div class="product-img">{{ product.emoji }}</div>
+              <div class="product-img">
+                <img
+                  v-if="getImage(product)"
+                  :src="getImage(product)"
+                  :alt="product.name"
+                  style="width:100%;height:100%;object-fit:contain;padding:12px;"
+                  @error="e => e.target.style.display='none'"
+                />
+                <span v-else style="font-size:3.5rem">🐾</span>
+              </div>
               <div class="product-info">
                 <span class="product-brand">{{ product.brand }}</span>
                 <h3 class="product-name">{{ product.name }}</h3>
-                <div class="product-rating">
-                  <span class="stars">★★★★★</span>
-                  <span class="review-count">({{ product.reviews }})</span>
-                </div>
                 <div class="product-price">
-                  <span class="price">${{ product.price.toFixed(2) }}</span>
-                  <span v-if="product.originalPrice" class="original-price">
-                    ${{ product.originalPrice.toFixed(2) }}
+                  <span class="price">${{ displayPrice(product) }}</span>
+                  <span v-if="product.salePrice && product.salePrice < product.price" class="original-price">
+                    ${{ Number(product.price).toFixed(2) }}
                   </span>
                 </div>
               </div>
@@ -108,8 +113,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useCartStore } from '../../stores/cart'
+import { productApi } from '../../api/index'
 import { ElMessage } from 'element-plus'
 
 const cartStore = useCartStore()
@@ -123,48 +129,44 @@ const categories = ref([
   { slug: 'reptile', name: 'Reptiles', emoji: '🦎' },
 ])
 
-const featuredProducts = ref([
-  {
-    id: 1,
-    name: 'Adult Complete Dry Dog Food',
-    brand: 'Blue Buffalo',
-    emoji: '🥩',
-    price: 54.99,
-    originalPrice: 64.99,
-    reviews: 2341,
-  },
-  {
-    id: 2,
-    name: 'Indoor Cat Grain-Free Food',
-    brand: 'Wellness',
-    emoji: '🐱',
-    price: 28.49,
-    originalPrice: null,
-    reviews: 1892,
-  },
-  {
-    id: 3,
-    name: 'Interactive Puzzle Toy',
-    brand: 'KONG',
-    emoji: '🧩',
-    price: 14.99,
-    originalPrice: 19.99,
-    reviews: 987,
-  },
-  {
-    id: 4,
-    name: 'Orthopedic Memory Foam Bed',
-    brand: 'Big Barker',
-    emoji: '🛏️',
-    price: 89.95,
-    originalPrice: null,
-    reviews: 654,
-  },
-])
+const featuredProducts = ref([])
+
+function getImage(product) {
+  try {
+    const imgs = JSON.parse(product.images)
+    return Array.isArray(imgs) ? imgs[0] : imgs
+  } catch {
+    return product.images || null
+  }
+}
+
+function displayPrice(product) {
+  const p = product.salePrice && product.salePrice < product.price
+    ? product.salePrice : product.price
+  return Number(p).toFixed(2)
+}
+
+onMounted(async () => {
+  try {
+    const res = await productApi.list({ page: 1, size: 8 })
+    const data = res?.data || res
+    const records = data?.records || data?.list || data || []
+    featuredProducts.value = records.slice(0, 8)
+  } catch (err) {
+    console.warn('[Home] Failed to load featured products', err)
+  }
+})
 
 function addToCart(product) {
-  cartStore.addItem(product)
-  ElMessage({ message: `${product.name} added to cart!`, type: 'success', duration: 2000 })
+  cartStore.addItem({
+    id: product.id,
+    name: product.name,
+    brand: product.brand,
+    price: product.salePrice || product.price,
+    emoji: '🐾',
+    image: getImage(product),
+  })
+  ElMessage({ message: `${product.name.slice(0, 30)}... added to cart!`, type: 'success', duration: 2000 })
 }
 </script>
 

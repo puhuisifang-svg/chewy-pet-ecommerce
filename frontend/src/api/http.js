@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://47.238.64.8:8080',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -13,7 +13,7 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor: handle errors
+// Response interceptor: unwrap data envelope
 http.interceptors.response.use(
   (res) => res.data,
   (err) => {
