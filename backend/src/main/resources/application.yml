@@ -20,7 +20,7 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 
 jwt:
-  secret: chewy-pet-secret-key-2026
+  secret: ChewyPetStore2024SecretKey!@#$%^&*XyZ9mN3pQrStUvWb
   expiration: 86400000
 
 payment:
