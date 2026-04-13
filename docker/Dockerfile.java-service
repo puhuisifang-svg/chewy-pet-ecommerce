@@ -1,0 +1,34 @@
+# ============================================================
+# Chewy Pet - Java 微服务通用 Dockerfile
+# 用法：每个微服务目录放一份，修改 JAR_NAME 即可
+# ============================================================
+
+# Stage 1: 构建
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+WORKDIR /app
+COPY pom.xml .
+# 先下载依赖（利用 Docker 缓存层）
+RUN mvn dependency:go-offline -q
+COPY src ./src
+RUN mvn clean package -DskipTests -q
+
+# Stage 2: 运行
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+# 安全：非 root 用户运行
+RUN addgroup -S chewy && adduser -S chewy -G chewy
+USER chewy
+
+COPY --from=builder /app/target/*.jar app.jar
+
+# 健康检查端口（各服务修改）
+EXPOSE 8080
+
+# JVM 优化：容器感知内存
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+UseG1GC", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]
