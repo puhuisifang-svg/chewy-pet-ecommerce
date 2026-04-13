@@ -25,13 +25,12 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 公开接口（无需认证）
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/products/**").permitAll()
                 .requestMatchers("/api/categories/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                // 管理接口暂时放开（Sprint 2 接入真正的 RBAC）
+                .requestMatchers("/api/cart/**").permitAll()   // JWT 由 CartController 手动校验
                 .requestMatchers("/api/admin/**").permitAll()
+                .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();
