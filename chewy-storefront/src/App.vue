@@ -20,7 +20,11 @@
             🛒 Cart
             <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
           </router-link>
-          <router-link to="/user" class="user-link">👤 Account</router-link>
+          <template v-if="authStore.isLoggedIn">
+            <router-link to="/account" class="user-link">👤 {{ authStore.user?.username || 'Account' }}</router-link>
+            <button class="btn-logout" @click="authStore.logout()">Sign Out</button>
+          </template>
+          <router-link v-else to="/auth" class="user-link">Sign In</router-link>
         </div>
       </div>
     </header>
@@ -47,8 +51,10 @@
 <script setup>
 import { computed } from 'vue'
 import { useCartStore } from './stores/cart'
+import { useAuthStore } from './stores/auth'
 
 const cartStore = useCartStore()
+const authStore = useAuthStore()
 const cartCount = computed(() => cartStore.totalItems)
 </script>
 
@@ -195,6 +201,23 @@ a {
 
 .footer-links a:hover {
   color: white;
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-logout:hover {
+  border-color: #dc2626;
+  color: #dc2626;
 }
 
 /* Responsive */

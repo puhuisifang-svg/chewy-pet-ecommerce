@@ -19,6 +19,9 @@ const routes = [
   { path: '/order/confirm', component: () => import('../views/order/Confirm.vue') },
   { path: '/account', component: () => import('../views/account/index.vue') },
   { path: '/user', redirect: '/account' },
+  { path: '/auth', component: () => import('../views/auth/index.vue') },
+  { path: '/login', redirect: '/auth' },
+  { path: '/register', redirect: { path: '/auth', query: { mode: 'register' } } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
