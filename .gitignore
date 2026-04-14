@@ -27,3 +27,7 @@ Thumbs.db
 backend/src/main/resources/application-prod.yml
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/*.secret.yml
+
+# Microservices sensitive config
+microservices/**/application-prod.yml
+microservices/**/application-local.yml

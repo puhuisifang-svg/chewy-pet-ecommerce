@@ -10,7 +10,7 @@ public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String email;
-    @TableField(select = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
     private String username;
     private String firstName;
