@@ -39,8 +39,6 @@ spring:
           uri: lb://chewy-product-service
           predicates:
             - Path=/api/admin/products/**
-          filters:
-            - StripPrefix=0
         - id: admin-service
           uri: lb://chewy-admin-service
           predicates:

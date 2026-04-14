@@ -37,6 +37,12 @@ public class ProductController {
         return Result.success(productService.listCategories());
     }
 
+    /** GET /api/admin/products - 管理后台商品列表（复用 listProducts） */
+    @GetMapping("/api/admin/products")
+    public Result<IPage<Product>> adminListProducts(ProductQueryRequest req) {
+        return Result.success(productService.listProducts(req));
+    }
+
     /** POST /api/admin/products - 新增商品 */
     @PostMapping("/api/admin/products")
     public Result<Product> createProduct(@Valid @RequestBody AdminProductRequest req) {
