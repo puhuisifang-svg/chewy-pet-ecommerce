@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
-@SpringBootApplication(scanBasePackages = {"com.chewy.cart", "com.chewy.exception"})
+@SpringBootApplication(scanBasePackages = {"com.chewy.cart", "com.chewy.util", "com.chewy.exception"})
 @EnableDiscoveryClient
 @EnableFeignClients
 public class CartServiceApplication {
