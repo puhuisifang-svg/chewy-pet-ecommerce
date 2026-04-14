@@ -136,14 +136,49 @@ onMounted(async () => {
 async function handleNext() {
   let address
   if (selectedAddressId.value && !showNewForm.value) {
-    address = savedAddresses.value.find(a => a.id === selectedAddressId.value)
-  } else {
+    const saved = savedAddresses.value.find(a => a.id === selectedAddressId.value)
+    // Normalize to consistent format
     address = {
-      name: `${form.value.firstName} ${form.value.lastName}`,
-      ...form.value,
+      fullName: saved.fullName || saved.name,
+      addressLine1: saved.addressLine1 || saved.line1,
+      addressLine2: saved.addressLine2 || saved.line2 || null,
+      city: saved.city,
+      state: saved.state,
+      zipCode: saved.zipCode || saved.zip,
+      country: saved.country || 'US',
+      phone: saved.phone || '',
+      // also keep legacy fields for display
+      name: saved.fullName || saved.name,
+      line1: saved.addressLine1 || saved.line1,
     }
-    if (form.value.saveAddress) {
-      try { await userApi.createAddress(address) } catch {}
+  } else {
+    const f = form.value
+    address = {
+      fullName: `${f.firstName} ${f.lastName}`.trim(),
+      addressLine1: f.line1,
+      addressLine2: f.line2 || null,
+      city: f.city,
+      state: f.state,
+      zipCode: f.zip,
+      country: 'US',
+      phone: f.phone || '',
+      // legacy display fields
+      name: `${f.firstName} ${f.lastName}`.trim(),
+      line1: f.line1,
+    }
+    if (f.saveAddress) {
+      try {
+        await userApi.createAddress({
+          fullName: address.fullName,
+          addressLine1: address.addressLine1,
+          city: address.city,
+          state: address.state,
+          zipCode: address.zipCode,
+          country: address.country,
+          phone: address.phone,
+          isDefault: 1,
+        })
+      } catch {}
     }
   }
   checkoutStore.setAddress(address)

@@ -175,23 +175,42 @@ async function handlePlaceOrder() {
 async function placeOrder(method, paymentId) {
   isSubmitting.value = true
   try {
+    const addr = checkoutStore.address || {}
     const orderData = {
-      items: cartStore.items.map(i => ({ productId: i.id, quantity: i.qty, price: i.price })),
-      address: checkoutStore.address,
+      shippingAddress: {
+        fullName: addr.name || addr.fullName || 'Guest',
+        addressLine1: addr.line1 || addr.addressLine1 || '',
+        addressLine2: addr.line2 || addr.addressLine2 || null,
+        city: addr.city || '',
+        state: addr.state || '',
+        zipCode: addr.zip || addr.zipCode || '',
+        country: addr.country || 'US',
+        phone: addr.phone || '',
+      },
+      items: cartStore.items.map(i => ({
+        skuId: i.skuId || i.id,
+        productId: i.productId || i.id,
+        productName: i.name,
+        skuName: i.specName || null,
+        image: i.image || null,
+        quantity: i.qty,
+        price: Number(i.price),
+      })),
       deliveryMethod: checkoutStore.deliveryMethod?.id || 'standard',
+      shippingFee: Number((shippingCost.value).toFixed(2)),
+      subtotal: Number(cartStore.totalPrice.toFixed(2)),
+      totalAmount: Number(finalTotal.value.toFixed(2)),
       paymentMethod: method,
-      paymentId,
-      subtotal: cartStore.totalPrice,
-      shipping: shippingCost.value,
-      total: finalTotal.value,
+      paymentIntentId: paymentId || null,
+      remark: '',
     }
 
     let orderId
     try {
       const res = await orderApi.create(orderData)
-      orderId = res?.id || res?.orderId || 'DEMO-' + Date.now()
+      const data = res?.data || res
+      orderId = data?.order?.id || data?.orderId || data?.id || 'DEMO-' + Date.now()
     } catch {
-      // Backend not ready — use demo order ID
       orderId = 'DEMO-' + Date.now()
     }
 
