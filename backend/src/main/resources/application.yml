@@ -5,13 +5,13 @@ spring:
   application:
     name: chewy-pet-backend
   datasource:
-    url: jdbc:mysql://localhost:3306/chewy_pet?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
-    username: root
-    password: root123
+    url: jdbc:mysql://127.0.0.1:3306/chewy_pet?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+    username: chewy_user
+    password: chewy_pass_2024
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: localhost
+      host: 127.0.0.1
       port: 6379
 
 mybatis-plus:
@@ -27,9 +27,30 @@ payment:
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_placeholder}
-    success-url: http://localhost:3000/payment/success
-    cancel-url: http://localhost:3000/payment/cancel
+    success-url: http://47.238.64.8/payment/success
+    cancel-url: http://47.238.64.8/payment/cancel
   paypal:
-    client-id: ${PAYPAL_CLIENT_ID:paypal_client_placeholder}
+    client-id: ${PAYPAL_CLIENT_ID:paypal_placeholder}
     client-secret: ${PAYPAL_CLIENT_SECRET:paypal_secret_placeholder}
     mode: sandbox
+
+# ===== Actuator 健康检查 =====
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      # 返回标准 Spring Boot 格式而非自定义 Result
+      probes:
+        enabled: true
+  health:
+    defaults:
+      enabled: true
+
+# ===== 日志配置 =====
+logging:
+  config: classpath:logback-spring.xml

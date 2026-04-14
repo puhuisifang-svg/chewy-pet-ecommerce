@@ -33,7 +33,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/payment/**").permitAll()
                 .requestMatchers("/api/user/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
+                // Actuator 健康检查端点完全放行
+                .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             );
         return http.build();
