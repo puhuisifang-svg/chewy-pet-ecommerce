@@ -19,7 +19,7 @@ public class InternalProductController {
     private final ProductSkuMapper productSkuMapper;
 
     @PutMapping("/skus/{skuId}/deduct-stock")
-    public Result<Void> deductStock(@PathVariable Long skuId, @RequestParam Integer quantity) {
+    public Result<Void> deductStock(@PathVariable("skuId") Long skuId, @RequestParam Integer quantity) {
         ProductSku sku = productSkuMapper.selectById(skuId);
         if (sku == null) return Result.error(404, "SKU not found");
         int newStock = Math.max(0, sku.getStock() - quantity);
@@ -29,7 +29,7 @@ public class InternalProductController {
     }
 
     @PutMapping("/skus/{skuId}/release-stock")
-    public Result<Void> releaseStock(@PathVariable Long skuId, @RequestParam Integer quantity) {
+    public Result<Void> releaseStock(@PathVariable("skuId") Long skuId, @RequestParam Integer quantity) {
         ProductSku sku = productSkuMapper.selectById(skuId);
         if (sku == null) return Result.error(404, "SKU not found");
         sku.setStock(sku.getStock() + quantity);

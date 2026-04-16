@@ -18,7 +18,7 @@ public class InternalCartController {
     private final CartItemMapper cartItemMapper;
 
     @DeleteMapping("/cart/user/{userId}")
-    public Result<Void> clearCartByUser(@PathVariable Long userId) {
+    public Result<Void> clearCartByUser(@PathVariable("userId") Long userId) {
         cartItemMapper.delete(
             new LambdaQueryWrapper<CartItem>().eq(CartItem::getUserId, userId)
         );

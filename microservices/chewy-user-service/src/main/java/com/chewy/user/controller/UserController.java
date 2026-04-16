@@ -54,7 +54,7 @@ public class UserController {
     /** PUT /api/user/addresses/{id} */
     @PutMapping("/addresses/{id}")
     public Result<UserAddress> updateAddress(HttpServletRequest request,
-                                              @PathVariable Long id,
+                                              @PathVariable("id") Long id,
                                               @Valid @RequestBody AddressRequest req) {
         return Result.success(userService.updateAddress(extractUserId(request), id, req));
     }
@@ -62,7 +62,7 @@ public class UserController {
     /** DELETE /api/user/addresses/{id} */
     @DeleteMapping("/addresses/{id}")
     public Result<Void> deleteAddress(HttpServletRequest request,
-                                       @PathVariable Long id) {
+                                       @PathVariable("id") Long id) {
         userService.deleteAddress(extractUserId(request), id);
         return Result.success();
     }
@@ -70,7 +70,7 @@ public class UserController {
     /** PUT /api/user/addresses/{id}/default */
     @PutMapping("/addresses/{id}/default")
     public Result<UserAddress> setDefaultAddress(HttpServletRequest request,
-                                                  @PathVariable Long id) {
+                                                  @PathVariable("id") Long id) {
         return Result.success(userService.setDefaultAddress(extractUserId(request), id));
     }
 

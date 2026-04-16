@@ -32,11 +32,11 @@ public class OrderController {
         return Result.success(orderService.listOrders(extractUserId(req), page, size));
     }
     @GetMapping("/{id}")
-    public Result<OrderDetailVO> getOrder(HttpServletRequest req, @PathVariable Long id) {
+    public Result<OrderDetailVO> getOrder(HttpServletRequest req, @PathVariable("id") Long id) {
         return Result.success(orderService.getOrderDetail(extractUserId(req), id));
     }
     @PutMapping("/{id}/cancel")
-    public Result<Order> cancelOrder(HttpServletRequest req, @PathVariable Long id) {
+    public Result<Order> cancelOrder(HttpServletRequest req, @PathVariable("id") Long id) {
         return Result.success(orderService.cancelOrder(extractUserId(req), id));
     }
 

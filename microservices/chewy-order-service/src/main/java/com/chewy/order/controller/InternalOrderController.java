@@ -18,7 +18,7 @@ public class InternalOrderController {
 
     @PutMapping("/orders/{orderId}/payment-status")
     public Result<Void> updatePaymentStatus(
-            @PathVariable Long orderId,
+            @PathVariable("orderId") Long orderId,
             @RequestParam String status,
             @RequestParam String paymentIntentId) {
         Order order = orderMapper.selectById(orderId);

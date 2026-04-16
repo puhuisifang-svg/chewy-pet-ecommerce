@@ -38,7 +38,7 @@ public class CartController {
     /** PUT /api/cart/items/{id} - 修改数量 */
     @PutMapping("/items/{id}")
     public Result<CartVO> updateItem(HttpServletRequest request,
-                                      @PathVariable Long id,
+                                      @PathVariable("id") Long id,
                                       @Valid @RequestBody CartItemUpdateRequest req) {
         Long userId = extractUserId(request);
         return Result.success(cartService.updateItem(userId, id, req));
@@ -47,7 +47,7 @@ public class CartController {
     /** DELETE /api/cart/items/{id} - 删除单项 */
     @DeleteMapping("/items/{id}")
     public Result<CartVO> removeItem(HttpServletRequest request,
-                                      @PathVariable Long id) {
+                                      @PathVariable("id") Long id) {
         Long userId = extractUserId(request);
         return Result.success(cartService.removeItem(userId, id));
     }

@@ -30,7 +30,7 @@ public class AdminOrderController {
     /** PUT /api/admin/orders/{id}/status */
     @PutMapping("/{id}/status")
     public Result<Order> updateStatus(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody Map<String, String> body) {
         String newStatus = body.get("status");
         if (newStatus == null || newStatus.isBlank()) {
